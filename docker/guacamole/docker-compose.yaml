@@ -1,0 +1,48 @@
+services:
+  guacdb:
+    container_name: guacamoledb
+    image: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 'XXXXXXXXXXX'
+      MYSQL_DATABASE: 'guacamole_db'
+      MYSQL_USER: 'guacamole_user'
+      MYSQL_PASSWORD: 'XXXXXXXXXXX'
+    volumes:
+      - 'db-data:/var/lib/mysql'
+    networks: 
+      - dnsquery
+  guacd:
+    container_name: guacd
+    image: guacamole/guacd
+    restart: unless-stopped
+    environment:
+      GUACD_LOG_LEVEL: debug
+    networks: 
+      - dnsquery
+  guacamole:
+    container_name: guacamole
+    image: guacamole/guacamole
+    restart: unless-stopped
+    ports:
+      - 8088:8080
+    environment:
+      GUACD_HOSTNAME: "guacd"
+      MYSQL_HOSTNAME: "guacdb"
+      MYSQL_DATABASE: "guacamole_db"
+      MYSQL_USER: "guacamole_user"
+      MYSQL_PASSWORD: "XXXXXXXXXXX"
+      TOTP_ENABLED: "true"
+    depends_on:
+      - guacdb
+      - guacd
+    networks: 
+      - dnsquery
+
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  dnsquery:
+    external: true

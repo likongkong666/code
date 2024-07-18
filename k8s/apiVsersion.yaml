@@ -1,0 +1,6 @@
+apiVsersion: v1 #api版本
+kind: Pod #资源类型
+metadata: #Pod元数据,用于描述Pod的基本信息
+  name: my-pod #Pod名称
+  labels: #Pod标签
+    app: myapp
