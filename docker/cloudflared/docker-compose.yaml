@@ -1,0 +1,12 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    networks: 
+      - tunnel
+    command: tunnel --no-autoupdate --loglevel debug run --token CLOUDFLARE_TOKEN
+
+networks:
+  tunnel:
+    external: true
