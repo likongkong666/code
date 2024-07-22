@@ -1,0 +1,22 @@
+services:
+  filebrowser:
+    container_name: filebrowser
+    image: filebrowser/filebrowser:latest
+    restart: always
+#    depends_on:
+#      - mariadb
+    volumes:
+      - ./data/srv:/srv
+      - ./data/config/config.json:/etc/config.json
+      - ./data/db/database.db:/etc/database.db
+#    environment:
+#      - DB_HOST=mariadb
+#      - DB_USER=admin
+#      - DB_PASS=admin
+#      - DB_NAME=notepad
+#      - DB_PORT=3306
+#      - PGID=1000
+#      - PUID=1000
+#      - TZ=Aisa/Shanghai
+    ports:
+      - "8080:80"
