@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudflared
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflared-secret
+  namespace: cloudflared
+type: Opaque
+data:
+  token: BASE64_ENCODED_CLOUDFLARE_TOKEN  # 请将此处替换为您的 Cloudflare Token 的 Base64 编码
+                                          # echo -n 'YOUR_CLOUDFLARE_TOKEN' | base64
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+  labels:
+    app: cloudflared
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      containers:
+      - name: cloudflared
+        image: cloudflare/cloudflared:latest
+        args: ["tunnel", "--protocol", "auto", "--no-autoupdate", "--loglevel", "debug", "run", "--token", "$(CLOUDFLARE_TOKEN)"]
+        env:
+        - name: CLOUDFLARE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloudflared-secret
+              key: token

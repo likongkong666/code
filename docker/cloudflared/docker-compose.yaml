@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     networks: 
       - tunnel
-    command: tunnel --no-autoupdate --loglevel debug run --token CLOUDFLARE_TOKEN
+    command: tunnel --protocol auto --no-autoupdate --loglevel debug run --token CLOUDFLARE_TOKEN
 
 networks:
   tunnel:
