@@ -1,0 +1,277 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: paperless-ngx
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paperless-ngx-config
+  namespace: paperless-ngx
+data:
+  PAPERLESS_REDIS: "redis://broker:6379"
+  PAPERLESS_TIKA_ENABLED: "1"
+  PAPERLESS_TIKA_GOTENBERG_ENDPOINT: "http://gotenberg:3000"
+  PAPERLESS_TIKA_ENDPOINT: "http://tika:9998"
+  USERMAP_UID: "0"
+  USERMAP_GID: "0"
+  PAPERLESS_TIME_ZONE: "Asia/Shanghai"
+  PAPERLESS_OCR_LANGUAGES: "chi-sim chi-tra"
+  PAPERLESS_OCR_LANGUAGE: "eng+chi_sim"
+  PAPERLESS_URL: "https://note.likongkong.top"
+  PAPERLESS_SECRET_KEY: "xxxxxxxxxxxxxxxx"
+
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redisdata-pvc
+  namespace: paperless-ngx
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-csi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-pvc
+  namespace: paperless-ngx
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: nfs-csi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-pvc
+  namespace: paperless-ngx
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-csi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: export-pvc
+  namespace: paperless-ngx
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-csi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: consume-pvc
+  namespace: paperless-ngx
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-csi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broker
+  namespace: paperless-ngx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: broker
+  template:
+    metadata:
+      labels:
+        app: broker
+    spec:
+      containers:
+        - name: redis
+          image: docker.io/library/redis:7
+          volumeMounts:
+            - mountPath: /data
+              name: redisdata
+      volumes:
+        - name: redisdata
+          persistentVolumeClaim:
+            claimName: redisdata-pvc
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webserver
+  namespace: paperless-ngx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webserver
+  template:
+    metadata:
+      labels:
+        app: webserver
+    spec:
+      containers:
+        - name: paperless-ngx
+          image: ghcr.io/paperless-ngx/paperless-ngx:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: paperless-ngx-config
+          volumeMounts:
+            - mountPath: /usr/src/paperless/data
+              name: data
+            - mountPath: /usr/src/paperless/media
+              name: media
+            - mountPath: /usr/src/paperless/export
+              name: export
+            - mountPath: /usr/src/paperless/consume
+              name: consume
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data-pvc
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-pvc
+        - name: export
+          persistentVolumeClaim:
+            claimName: export-pvc
+        - name: consume
+          persistentVolumeClaim:
+            claimName: consume-pvc
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gotenberg
+  namespace: paperless-ngx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gotenberg
+  template:
+    metadata:
+      labels:
+        app: gotenberg
+    spec:
+      containers:
+        - name: gotenberg
+          image: docker.io/gotenberg/gotenberg:8.7
+          command:
+            - "gotenberg"
+            - "--chromium-disable-javascript=true"
+            - "--chromium-allow-list=file:///tmp/.*"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tika
+  namespace: paperless-ngx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tika
+  template:
+    metadata:
+      labels:
+        app: tika
+    spec:
+      containers:
+        - name: tika
+          image: docker.io/apache/tika:latest
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: broker
+  namespace: paperless-ngx
+spec:
+  ports:
+    - port: 6379
+  selector:
+    app: broker
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webserver
+  namespace: paperless-ngx
+spec:
+  type: NodePort
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 32888
+  selector:
+    app: webserver
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: gotenberg
+  namespace: paperless-ngx
+spec:
+  ports:
+    - port: 3000
+  selector:
+    app: gotenberg
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: tika
+  namespace: paperless-ngx
+spec:
+  ports:
+    - port: 9998
+  selector:
+    app: tika
